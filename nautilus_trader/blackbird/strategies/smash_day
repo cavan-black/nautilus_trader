@@ -140,21 +140,14 @@ class SmashDay(Strategy):
             if self.last_close > self.slow_ema.value and self.last_close > self.fast_ema.value:
                 if self.last_close > self.close_20 and self.last_close < self.low_2:
                     if self.portfolio.is_flat(self.instrument_id):
-                        self.buy(tick)
-                # elif self.portfolio.is_net_short(self.instrument_id):
-                #     self.close_all_positions(self.instrument_id)
-                #     self.cancel_all_orders(self.instrument_id)
-                #     self.buy(bar)
+                        self.buy()
+            
             # SELL LOGIC
-            elif self.fast_ema.value < self.slow_ema.value:
-                if self.portfolio.is_flat(self.instrument_id):
-                    self.sell(bar)
-                elif self.portfolio.is_net_long(self.instrument_id):
-                    self.close_all_positions(self.instrument_id)
-                    self.cancel_all_orders(self.instrument_id)
-                    self.sell(bar)
+            elif self.last_close < self.slow_ema.value and self.last_close < self.fast_ema.value:
+                if self.last_close < self.close_20 and self.last_close > self.high_2:
+                    if self.portfolio.is_flat(self.instrument_id):
+                        self.sell()
         
-
         # For debugging (must add a subscription)
         # self.log.info(repr(tick), LogColor.CYAN)
         pass
@@ -191,34 +184,29 @@ class SmashDay(Strategy):
         self.last_close = prev_bar.close
         self.last_high = prev_bar.high
 
-    def buy(self, last_bar: Bar):
+    def buy(self):
         """
-        Users bracket buy method (example).
+        Uses entry at previous high
         """
-        bracket_distance: float = self.bracket_distance_atr * self.atr.value
-        order_list: OrderList = self.order_factory.bracket_market(
+        order_list: OrderList = self.order_factory.limit(
             instrument_id=self.instrument_id,
             order_side=OrderSide.BUY,
             quantity=self.instrument.make_qty(self.trade_size),
-            stop_loss=self.instrument.make_price(last_bar.close - bracket_distance),
-            take_profit=self.instrument.make_price(last_bar.close + bracket_distance),
+            price=self.last_high
         )
         
         self.submit_order_list(order_list)
 
-    def sell(self, last_bar: Bar):
+    def sell(self):
         """
-        Users bracket sell method (example).
+        Uses entry at previous low
         """
-        bracket_distance: float = self.bracket_distance_atr * self.atr.value
-        order_list: OrderList = self.order_factory.bracket_market(
+        order_list: OrderList = self.order_factory.limit(
             instrument_id=self.instrument_id,
-            order_side=OrderSide.SELL,
+            order_side=OrderSide.sell,
             quantity=self.instrument.make_qty(self.trade_size),
-            stop_loss=self.instrument.make_price(last_bar.close + bracket_distance),
-            take_profit=self.instrument.make_price(last_bar.close - bracket_distance),
+            price=self.last_low
         )
-
         self.submit_order_list(order_list)
 
     def on_data(self, data: Data):
